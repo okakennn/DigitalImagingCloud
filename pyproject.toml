@@ -1,0 +1,36 @@
+[project]
+name = "digitalimagingcloud"
+version = "0.1.0"
+description = "FTP server that syncs images to Google Photos"
+authors = [
+    { name = "okakennn", email = "okkn425@gmail.com" }
+]
+dependencies = [
+    "pyftpdlib~=1.5.7",
+    "watchdog~=2.1.9",
+    "google-auth-oauthlib~=1.2.1",
+    "google-auth-httplib2~=0.2.0",
+    "google-api-python-client~=2.138.0",
+    "requests~=2.28.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/digitalimagingcloud"]
+
+managed = true
+dev-dependencies = [
+    "pytest~=7.3.1",
+]

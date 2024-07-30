@@ -1,0 +1,22 @@
+# python generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.lock
+
+# venv
+.venv
+
+# credentials
+token.json
+credentials.json
+
+#logs
+*.log
+
+#etc
+uploads/
+.DS_Store
