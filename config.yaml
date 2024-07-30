@@ -1,0 +1,36 @@
+# FTPサーバーの設定
+ftp:
+  port: 2121
+  upload_dir: "uploads"
+  anonymous_login: true
+  username: "user"
+  password: "password"
+
+# ログの設定
+logging:
+  level: INFO
+  file: "digital_imaging_cloud.log"
+
+# アップロードの設定
+upload:
+  conversion:
+    type: "webp" #heic, webp, none
+    quality: 80
+  history_db: "upload_history.db"
+  hash_buffer_size: 65536
+  delete_after_upload: true
+
+# Google認証の設定
+google:
+  credentials_file: "credentials.json"
+
+# ファイル監視の設定
+file_watcher:
+  stability_timeout: 10
+  check_interval: 0.5
+  allowed_extensions:
+    - ".jpg"
+    - ".jpeg"
+    # - ".png"
+    # - ".gif"
+    # - ".heic"

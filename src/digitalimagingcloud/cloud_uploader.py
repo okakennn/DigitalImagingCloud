@@ -8,43 +8,55 @@ from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError, UnknownApiNameOrVersion
 import requests
 from urllib.parse import quote
+from PIL import Image
+import io
+import pillow_heif
+from utils.config_loader import CONFIG
 
-# ロギングの設定
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/photoslibrary.appendonly']
 
 def get_credentials():
-    logger.debug("Entering get_credentials function")
     creds = None
+    credentials_path = CONFIG['google']['credentials_file']
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', SCOPES)
     
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            logger.info("Refreshing expired credentials")
             creds.refresh(Request())
         else:
-            logger.info("Starting new authentication flow")
-            flow = Flow.from_client_secrets_file(
-                'credentials.json',
-                scopes=SCOPES,
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-
+            flow = Flow.from_client_secrets_file(credentials_path, SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
             auth_url, _ = flow.authorization_url(prompt='consent')
-            
             print(f"Please visit this URL to authorize the application: {auth_url}")
             code = input("Enter the authorization code: ")
-            
             flow.fetch_token(code=code)
             creds = flow.credentials
         
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
-            logger.debug("Credentials saved to token.json")
     
     return creds
+
+def convert_image(file_path, conversion_type, quality):
+    with Image.open(file_path) as img:
+        exif = img.info.get('exif', b'')
+        buffered = io.BytesIO()
+        
+        if conversion_type == 'webp':
+            img.save(buffered, format="WEBP", quality=quality, exif=exif)
+            new_extension = '.webp'
+        elif conversion_type == 'heic':
+            heif_file = pillow_heif.from_pillow(img)
+            heif_file.save(buffered, quality=quality)
+            new_extension = '.heic'
+        else:
+            img.save(buffered, format=img.format, quality=quality, exif=exif)
+            new_extension = os.path.splitext(file_path)[1]
+        
+        return buffered.getvalue(), new_extension
 
 def upload_to_google_photos(file_path):
     logger.debug(f"Attempting to upload file: {file_path}")
@@ -58,11 +70,16 @@ def upload_to_google_photos(file_path):
 
     try:
         file_name = os.path.basename(file_path)
+        conversion_type = CONFIG['upload']['conversion']['type']
+        quality = CONFIG['upload']['conversion']['quality']
         
-        # URLエンコードされたファイル名を作成
+        file_data, new_extension = convert_image(file_path, conversion_type, quality)
+        if conversion_type != 'none':
+            file_name = os.path.splitext(file_name)[0] + new_extension
+            logger.info(f"Converted {os.path.basename(file_path)} to {conversion_type.upper()}")
+        
         encoded_file_name = quote(file_name)
         
-        # Step 1: アップロードトークンの取得
         upload_endpoint = 'https://photoslibrary.googleapis.com/v1/uploads'
         headers = {
             'Authorization': f'Bearer {creds.token}',
@@ -71,14 +88,10 @@ def upload_to_google_photos(file_path):
             'X-Goog-Upload-File-Name': encoded_file_name
         }
 
-        with open(file_path, 'rb') as file:
-            file_data = file.read()
-        
         response = requests.post(upload_endpoint, headers=headers, data=file_data)
-        response.raise_for_status()  # エラーがあれば例外を発生させる
+        response.raise_for_status()
         upload_token = response.content.decode('utf-8')
 
-        # Step 2: メディアアイテムの作成
         request_body = {
             'newMediaItems': [{
                 'description': f'Uploaded by Digital Imaging Cloud: {file_name}',
@@ -101,7 +114,6 @@ def upload_to_google_photos(file_path):
     return None
 
 if __name__ == "__main__":
-    # テスト用のコード
     test_file_path = "path/to/your/test/image.jpg"
     result = upload_to_google_photos(test_file_path)
     if result:
