@@ -19,4 +19,5 @@ credentials.json
 
 #etc
 uploads/
+*.db
 .DS_Store
